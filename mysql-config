@@ -1,0 +1,17 @@
+########################################################
+##INSTALLING MYSQL SERVER
+########################################################
+$ sudo apt-get update
+$ sudo apt-get install mysql-server
+$ mysql_secure_installation
+
+########################################################
+##CONFIGURING MYSQL SERVER
+########################################################
+$ mysql -u root -p
+ 
+mysql> CREATE DATABASE sphere;
+mysql> USE sphere; CREATE TABLE CustomerData ( CustomerId varchar(255), CustomerName varchar(255), CustomerAge varchar(255), CustomerAddress varchar(255) );
+mysql> CREATE USER 'sphere'@'localhost' IDENTIFIED BY 'SphereWorkAssessment234()'; 
+mysql> GRANT ALL ON sphere.CustomerData TO 'sphere'@'localhost';
+mysql> exit
