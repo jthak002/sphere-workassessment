@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"database/sql"
+	"fmt"
 	"html/template"
 	"log"
 	"net/http"
@@ -29,17 +31,17 @@ func (customer *Customer) ParseRecord() string {
 }
 
 //CreateRecord function makes an instance of the customer struct for SQL storage purposes
-func CreateRecord(name string, age string, id string, address string) *Customer {
+func createRecord(name string, age string, id string, address string) Customer {
 	customer := Customer{
 		name:    name,
 		age:     age,
 		id:      id,
 		address: address,
 	}
-	return &customer
+	return customer
 }
 
-//addRecord function accepts input from the form and thenadds the input to
+//addRecord function accepts input from the form and then adds the input to
 //the MySQL Database. The page refreshes the page to display the new values of the table.
 func addRecord(writer http.ResponseWriter, request *http.Request) {
 	log.Println("RENDERING addRecord.html")
@@ -57,9 +59,13 @@ func addRecord(writer http.ResponseWriter, request *http.Request) {
 			caddress = strings.Join(value, "")
 		}
 	}
-	customer := CreateRecord(cname, cage, cid, caddress)
-	log.Println(*customer)
-
+	customer := createRecord(cname, cage, cid, caddress)
+	log.Println("Record Created Successfully!")
+	log.Println(customer)
+	dbAdd(customer)
+	log.Println("Customer Added Successfully!")
+	customers := dbSpan()
+	log.Println(customers)
 }
 
 //renderIndex function renders the index.html page on request from the clients
@@ -70,10 +76,69 @@ func renderIndex(writer http.ResponseWriter, request *http.Request) {
 	t.Execute(writer, lol)
 }
 
-//dbinit function intiilizes the MySQL Database to accept inputs from the application form
-//If the SQL database exists, and is ready to accept input the process will continue normally
-func dbInit() error {
-	db, err := sql.Open("mysql", "sphere:SphereWorkAssessment234()@tcp(127.0.0.1:3306)/sphere")
+//dbAdd function receives an object of type customer and adds it to the
+//MySQL Database
+func dbAdd(customer Customer) {
+	err := db.Ping()
+	if err != nil {
+		log.Fatal(err)
+	}
+	var buffer bytes.Buffer
+	buffer.WriteString("INSERT INTO `CustomerData` (CustomerId, CustomerName, CustomerAge, CustomerAddress) VALUES (")
+	customerStringSlice := []string{customer.id, customer.name, customer.age, customer.address}
+	buffer.WriteString("'" + customerStringSlice[0] + "', '")
+	buffer.WriteString(customerStringSlice[1] + "', '")
+	buffer.WriteString(customerStringSlice[2] + "', '")
+	buffer.WriteString(customerStringSlice[3] + "');")
+	log.Println(buffer.String())
+	stmt, err := db.Prepare(buffer.String())
+	if err != nil {
+		log.Println(err)
+	}
+	res, err := stmt.Exec()
+	if err != nil {
+		log.Println(err)
+		log.Println(res)
+	}
+}
+
+//dbSpan function sends a query to MySQL Database and then collects the response
+//which is used to display the results onto HTML page
+func dbSpan() []Customer {
+	err := db.Ping()
+	if err != nil {
+		log.Println("MySQL.Sphere Live check failed")
+	}
+	rows, err := db.Query("SELECT * FROM CustomerData ")
+	if err != nil {
+		log.Println("MySQL.Sphere Query Failed")
+	} else {
+		if rows == nil {
+			log.Println("MySQL.Sphere No Records Exist")
+		}
+	}
+	var name, age, id, address string
+	var customers []Customer
+	for rows.Next() {
+		err := rows.Scan(&id, &name, &age, &address)
+		if err != nil {
+			log.Println("MySQL.sphere Record parsing failed!")
+			log.Fatal(err)
+		}
+		customer := createRecord(name, age, id, address)
+		customers = append(customers, customer)
+	}
+	err = rows.Err()
+	if err != nil {
+		//log.Fatal(err)
+		fmt.Println("err")
+	}
+	return customers
+}
+
+func main() {
+	var err error
+	db, err = sql.Open("mysql", "sphere:SphereWorkAssessment234()@tcp(127.0.0.1:3306)/sphere")
 	if err != nil {
 		log.Printf("MySQL.Sphere not responding%e\n", err)
 	}
@@ -81,10 +146,6 @@ func dbInit() error {
 	if err != nil {
 		log.Println("MySQL.Sphere Offline")
 	}
-	return err
-}
-func main() {
-	err := dbInit() //Initialize the MySQL Database - Store in db global variable
 	if err != nil {
 		log.Println("MySQL.Sphere DB Init Failed")
 	} else {
@@ -92,6 +153,6 @@ func main() {
 	}
 	defer db.Close()
 	http.HandleFunc("/addRecord", addRecord)
-	http.HandleFunc("/", renderIndex)
+	http.HandleFunc("/index.html", renderIndex)
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
