@@ -40,6 +40,7 @@
                         </tr>
                     </thead>
                     <tbody>
+                        {{printf "%s" .TableFields}}
                     </tbody>
                 </table>
             </div>

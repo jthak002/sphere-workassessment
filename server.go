@@ -20,6 +20,12 @@ type Customer struct {
 	address string
 }
 
+//TableBody stores the HTML formatted table rows with the corresposding data
+//for each customer record from the SQL database
+type TableBody struct {
+	TableFields []byte
+}
+
 //unexported global db variable to store the database open variable
 var db *sql.DB
 
@@ -39,6 +45,22 @@ func createRecord(name string, age string, id string, address string) Customer {
 		address: address,
 	}
 	return customer
+}
+
+//createHTMLTable converts a given Customer slice into a byte stream
+//TRIED CONVERTING IT INTO string but the HTMLEscaper functions that are a part of
+//convert all the tags into escape sequences. Byte Streams get past those filters
+func createHTMLTable(customers *[]Customer) []byte {
+	var buffer bytes.Buffer
+	for _, value := range *customers {
+		buffer.WriteString("<tr> ")
+		buffer.WriteString("<td>" + value.id + "</td> ")
+		buffer.WriteString("<td>" + value.name + "</td> ")
+		buffer.WriteString("<td>" + value.age + "</td> ")
+		buffer.WriteString("<td>" + value.address + "</td> ")
+		buffer.WriteString("</tr>\n")
+	}
+	return buffer.Bytes()
 }
 
 //addRecord function accepts input from the form and then adds the input to
@@ -66,14 +88,20 @@ func addRecord(writer http.ResponseWriter, request *http.Request) {
 	log.Println("Customer Added Successfully!")
 	customers := dbSpan()
 	log.Println(customers)
+	byteObject := TableBody{TableFields: createHTMLTable(&customers)}
+	t, _ := template.ParseFiles("index")
+	t.Execute(writer, byteObject)
+
 }
 
 //renderIndex function renders the index.html page on request from the clients
 func renderIndex(writer http.ResponseWriter, request *http.Request) {
 	log.Println("RENDERING index.html")
-	t, _ := template.ParseFiles("index.html")
-	lol := "Hello"
-	t.Execute(writer, lol)
+	customers := dbSpan()
+	log.Println(customers)
+	byteObject := TableBody{TableFields: createHTMLTable(&customers)}
+	t, _ := template.ParseFiles("index")
+	t.Execute(writer, byteObject)
 }
 
 //dbAdd function receives an object of type customer and adds it to the
